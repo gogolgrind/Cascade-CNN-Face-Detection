@@ -12,7 +12,7 @@ import cv2
 from time import time
 import seaborn as sns
 import itertools
-from util import nms
+from util import Util as util
 
 sn = (0.83, 0.91, 1.0, 1.10, 1.21)
 xn = (-0.17, 0.0, 0.17)
@@ -185,12 +185,12 @@ def main():
     k = 1.18
     bb = apply_12_net(image = image,iname = iname,nn = nn12,p_level=p,k=k,debug=0)
     bb = apply_calib_net(image = image, iname = iname,bb=bb,nn=nn_calib12)
-    bb = nms(bb,T=0.8)
+    bb = util.nms(bb,T=0.8)
     bb = apply_24_net(image = image, iname = iname, bb = bb,nn = nn24 )
     bb = apply_calib_net(image = image, iname = iname,bb = bb,nn=nn_calib24)
-    bb = nms(bb,T=0.8)
+    bb = util.nms(bb,T=0.8)
     bb = apply_48_net(image = image, iname = iname, bb = bb,nn = nn48 )
-    bb = nms(bb,T=0.1)
+    bb = util.nms(bb,T=0.3)
     bb = apply_calib_net(image = image, iname = iname,bb=bb,nn=nn_calib48)    
     draw_bboxes(iname,bb)
 if __name__ == '__main__':

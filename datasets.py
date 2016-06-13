@@ -197,7 +197,7 @@ class Datasets():
         return X,y
     
     @staticmethod
-    def get_train_wider_data(n_pos = 31929, n_neg = 164863,k=12):        
+    def get_train_data(n_pos = 31929, n_neg = 164863,k=12):        
         '''
         megre positive and negative examples
         '''
