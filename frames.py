@@ -64,8 +64,8 @@ class Frames():
         # get fix size part(patch)  of image
         H,W = frame.shape[:2]
         h,w = wshape    
-        subframe = frame[i:i+w,j:j+h]
-        return subframe
+        #subframe = frame[i:i+w,j:j+h]
+        return frame[i:i+w,j:j+h]
         
     @staticmethod                
     def split_frame(frame,wshape = (12,12)):

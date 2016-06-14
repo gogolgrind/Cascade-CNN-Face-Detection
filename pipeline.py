@@ -44,7 +44,7 @@ def mean_pattern(proba,t):
 def apply_12_net(image,iname,nn,p_level = 16,k = 1.18,debug = 1):
     py = fr.get_frame_pyramid(image,k=k,t=p_level) 
     suff = nn.nn_name[:2]
-    h,w = int(suff),int(suff)
+    patch_size = int(suff)
     rows,cols,d = image.shape
     s = time()
     rbb = []
@@ -57,11 +57,12 @@ def apply_12_net(image,iname,nn,p_level = 16,k = 1.18,debug = 1):
         H,W,dim = frame.shape
         X_test = []
         pnt = []
-        for y in range(0,H - h + 1,4):
-            for x in range(0,W - w + 1,4):
-                subframe = frame[y:y+h,x:x+w]
+        for u in range(0,H - patch_size + 1,4):
+            for v in range(0,W - patch_size + 1,4):
+                subframe = fr.get_patch(frame,u,v,(patch_size,patch_size))
+                #subframe = frame[y:y+h,x:x+w]
                 X_test.append(fr.frame_to_vect(subframe))
-                pnt.append((x,y))
+                pnt.append((v,u))
         pnt = sp.array(pnt)
         X_test = sp.array(X_test)
         pred = nn.predict(X_test)
@@ -76,8 +77,8 @@ def apply_12_net(image,iname,nn,p_level = 16,k = 1.18,debug = 1):
             i = p[0]
             j = p[1]
             if debug:
-                cv2.rectangle(frame, (i, j), (i+w, j+h), (255,0,255), 1)    
-            bb.append([i,j,i+w,j+h])
+                cv2.rectangle(frame, (i, j), (i+patch_size, j+patch_size), (255,0,255), 1)    
+            bb.append([i,j,i+patch_size,j+patch_size])
         for e in bb:
             x1,y1,x2,y2 = e
             ox1 = math.floor(image.shape[1] * (x1/frame.shape[1]))
@@ -139,7 +140,6 @@ def apply_calib_net(image,iname,nn,bb):
         #fr.write_frame('F:\\1\\'+str(c),sub)
     X_calib = sp.array(X_calib)
     pred_proba = nn.predict_proba(X_calib)
-    pred = nn.predict(X_calib)
     nbb = []
     for e,lb in zip(bb,pred_proba):
         t = 0.3
