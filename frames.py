@@ -27,7 +27,10 @@ class Frames():
     def get_frame(path_to_frame = None):
         # load image to numpy array
         if not Frames.with_open_cv:
-            return sp.misc.imread(path_to_frame)
+            frame = sp.misc.imread(path_to_frame)
+            # rbg -> bgr for ccompatibility with cv2 
+            frame = frame[...,::-1]
+            return frame
         return cv2.imread(path_to_frame)
         
     @staticmethod
@@ -82,7 +85,7 @@ class Frames():
     @staticmethod        
     def frame_to_vect(frame):
         # tranform rgb image for CNN input layer 
-        h,w = frame.shape[:2]
+        H,W = frame.shape[:2]
         frame = sp.asarray(frame, dtype = sp.float16) / 255.0
-        features = frame.transpose(2,0,1).reshape(3, h, w)
+        features = frame.transpose(2,0,1).reshape(3, H, W)
         return features        
