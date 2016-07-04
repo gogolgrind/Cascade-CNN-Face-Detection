@@ -52,15 +52,33 @@ class Frames():
             cv2.imwrite(name+'.jpg',frame)
             
     @staticmethod  
-    def __pyramid_ski__(frame,t = 7,k = 2):
+    def __pyramid_ski__(frame,steps = 7,scale = 2):
         # create image pyramid from img, skimage implemetation
-        py = pyramid_gaussian(frame, downscale = k)
-        return [sp.round_(255.0*e).astype(sp.uint8) for e in py][:t]
+        py = pyramid_gaussian(frame, downscale = scale)
+        return [sp.round_(255.0*e).astype(sp.uint8) for e in py][:steps]
+        
+    @staticmethod  
+    def __pyramid_my__(frame_,steps = 7,scale = 2):
+        # create image pyramid from img, skimage implemetation
+        frame = frame_.copy()        
+        py = []
+        s = 1
+        H,W,dim = frame.shape
+        for e in range(steps):
+            h,w = round(H/s),round(W/s) 
+            r_frame  = Frames.resize_frame(frame,(w,h))
+            py.append(r_frame)
+            s *= scale
+            
+        py = sp.array(py)
+        return py
+    
         
     @staticmethod        
-    def get_frame_pyramid(frame, t = 7, k = 2):
+    def get_frame_pyramid(frame, steps = 7, scale = 2):
         # create image pyramid from img
-        return Frames.__pyramid_ski__(frame,t,k)
+        return Frames.__pyramid_my__(frame,steps,scale)
+        #return Frames.__pyramid_ski__(frame,steps,scale)
             
     @staticmethod            
     def get_patch(frame,i,j,wshape = (12,12)):

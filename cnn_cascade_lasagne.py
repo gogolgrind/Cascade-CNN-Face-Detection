@@ -32,12 +32,20 @@ class Cnn(object):
     __train_fn__ = None
     # create classifcation nets
     def __build_12_net__(self):
+#        
+#        network = layers.InputLayer((None, 3, 12, 12), input_var=self.__input_var__)
+#        network = layers.Conv2DLayer(network,num_filters=16,filter_size=(3,3),stride=1,nonlinearity=relu)    
+#        network = layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2)    
+#        network = layers.Conv2DLayer(network,num_filters=16,filter_size=(4,4),stride=1,nonlinearity=relu)    
+#        network = layers.Conv2DLayer(network,num_filters=2,filter_size=(1,1),stride=1,nonlinearity=relu)    
+#        network = layers.DenseLayer(network,num_units = 2, nonlinearity = softmax)
+
+
         network = layers.InputLayer((None, 3, 12, 12), input_var=self.__input_var__)
         network = layers.Conv2DLayer(network,num_filters=16,filter_size=(3,3),stride=1,nonlinearity=relu)
         network = layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2)
         network = layers.DropoutLayer(network)        
         network = layers.DenseLayer(network,num_units = 16,nonlinearity = relu)
-        #network = layers.Conv2DLayer(network,num_filters=16,filter_size=(1,1),stride=1,nonlinearity=relu)        
         network = layers.DenseLayer(network,num_units = 2, nonlinearity = softmax)
         return network
     
@@ -48,9 +56,8 @@ class Cnn(object):
         network = layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2)
         network = layers.DropoutLayer(network)
         network = layers.DenseLayer(network,num_units = 128,nonlinearity = relu)
-        #network = layers.Conv2DLayer(network,num_filters=128,filter_size=(1,1),stride=1,nonlinearity=relu)
-        denselayer12 = model12.net.input_layer  # i.e., one layer before the output layer of model12
-        network = layers.ConcatLayer([network, denselayer12])  # concatenate with dense layer of this model
+        denselayer12 = model12.net.input_layer  
+        network = layers.ConcatLayer([network, denselayer12]) 
         network = layers.DenseLayer(network,num_units = 2, nonlinearity = softmax)
         return network
     
@@ -75,7 +82,6 @@ class Cnn(object):
         network = layers.Conv2DLayer(network,num_filters=16,filter_size=(3,3),stride=1,nonlinearity=relu)
         network = layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2)
         network = layers.DenseLayer(network,num_units = 128,nonlinearity = relu)
-        #network = layers.Conv2DLayer(network,num_filters=128,filter_size=(1,1),stride=1,nonlinearity=relu)
         network = layers.DenseLayer(network,num_units = 45, nonlinearity = softmax)
         return network
         
@@ -84,7 +90,6 @@ class Cnn(object):
         network = layers.Conv2DLayer(network,num_filters=32,filter_size=(5,5),stride=1,nonlinearity=relu)
         network = layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2)
         network = layers.DenseLayer(network,num_units = 64,nonlinearity = relu)
-        #network = layers.Conv2DLayer(network,num_filters=64,filter_size=(1,1),stride=1,nonlinearity=relu)
         network = layers.DenseLayer(network,num_units = 45, nonlinearity = softmax)
         return network
         
@@ -95,7 +100,6 @@ class Cnn(object):
         network = layers.Conv2DLayer(network,num_filters=64,filter_size=(5,5),stride=1,nonlinearity=relu)
         network = layers.batch_norm(layers.MaxPool2DLayer(network, pool_size = (3,3),stride = 2))
         network = layers.DenseLayer(network,num_units = 256,nonlinearity = relu)
-        #network = layers.Conv2DLayer(network,num_filters=2,filter_size=(1,1),stride=1,nonlinearity=relu)
         network = layers.DenseLayer(network,num_units = 45, nonlinearity = softmax)
         return network
     
@@ -209,7 +213,8 @@ class Cnn(object):
                 print("epoch %d  out of %d \t loss %g \t time %d s" % (epoch + 1,self.max_epochs, loss / len(X),dur))
         
     def predict(self,X,X12 = None,X24 = None):
-        y_pred = sp.argmax(self.predict_proba(X=X,X24=X24,X12=X12),axis=1)
+        proba = self.predict_proba(X=X,X24=X24,X12=X12)
+        y_pred = sp.argmax(proba,axis=1)
         return sp.array(y_pred)
         
     def predict_proba(self,X,X12 = None,X24 = None):
@@ -251,12 +256,22 @@ class Cnn(object):
                 proba.append(p)
         return sp.array(proba)
     
-    def save_model(self,model_name = nn_name+'.pickle'):
+    def __save_model_old__(self,model_name = nn_name+'.pickle'):
         with open(model_name, 'wb') as f:
             pickle.dump(self, f, -1)
             
-    def load_model(self,model_name = nn_name+'.pickle'):
+    def __load_model_old__(self,model_name = nn_name+'.pickle'):
         with open(model_name, 'rb') as f:
             model = pickle.load(f)
             f.close()
-        return model            
+        return model
+
+    def save_model(self,model_name = nn_name+'.npz'):
+        sp.savez(model_name, *layers.get_all_param_values(self.net))
+            
+    def load_model(self,model_name = nn_name+'.npz'):
+        print(model_name,'is loaded')
+        with sp.load(model_name) as f:
+            param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+            layers.set_all_param_values(self.net, param_values)
+        return self            
