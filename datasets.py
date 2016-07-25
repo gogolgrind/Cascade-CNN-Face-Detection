@@ -18,35 +18,144 @@ from util import Util as util
 
 class Datasets():
     
+    @staticmethod 
+    def frames2batch(k = 12,batch_size = 1024, is_calib = False):
+        pos = util.get_files(rootdir = 'F:\\train_data\\pos\\')
+        neg = util.get_files(rootdir = 'F:\\train_data\\neg\\')
+        pos = shuffle(pos)
+        neg = shuffle(neg)
+        total = pos + neg
+        total  = shuffle(total)
+        batch = []
+        c = 0
+        bpath = 'F:\\train_data\\batch\\'
+        for item_path in total:
+            
+            frame = fr.get_frame(item_path)
+            frame_r = fr.resize_frame(frame,(k,k))
+            if frame_r == None:
+                continue
+            vec = fr.frame_to_vect(frame_r)
+            label = 1 if item_path.split('\\')[-1].find('pos') > 0 else 0
+            print(item_path,label)
+            batch.append((vec,label))
+            if len(batch) > 0 and len(batch) % batch_size == 0:
+                batch = sp.array(batch)
+                sp.savez(bpath + str(c) + '_' + str(k) + ('_' if not is_calib else '_calib-')  + 'net',batch)
+                batch = []
+                
+                c += 1
+        if len(batch) > 0 and len(batch) % batch_size == 0:
+            batch = sp.array(batch)
+            sp.savez(bpath + str(c) + '_' + str(k) + ('_' if not is_calib else '_calib')  + '-net',batch)
+            batch = []
+            c += 1
+    
+    @staticmethod 
+    def data_augmentation(frame,y,x,w,h):
+        face = fr.get_patch(frame,y,x,(w,h))
+        face_flip = fr.flip_frame(face)
+        t1 = sp.random.randint(0,3)
+        t2 = sp.random.randint(0,3)
+        face_narrow = fr.get_patch(frame,y,x,(w-t2,h-t2))
+        face_wide = fr.get_patch(frame,y,x,(w+t2,h+t2))
+        t1 = sp.random.randint(0,3)
+        t2 = sp.random.randint(0,3)
+        
+        face_shift1 = fr.get_patch(frame,y+t1,x+t1,(w+t2,h+t2))
+        face_shift2 = fr.get_patch(frame,y-t1,x-t1,(w-t2,h-t2))
+        th = float((1 if sp.random.randint(0,2) % 2 == 0 else -1) * sp.random.randint(45,90))
+        
+        face_rot = fr.frame_rotate(face,theta = th)
+        
+        faces_list = filter(lambda x: x != None,[face,face_flip,face_narrow,face_wide,face_shift1,face_shift2,face_rot])
+        return faces_list
+    
     @staticmethod
-    def get_aflw_face_data(k = 12):
+    def get_fddb_face_data(k = 12, on_drive = False):
+        root = 'F:\\datasets\\image_data_sets\\faces\\FDDB\\'
+        iroot = os.path.join(root,'originalPics')
+        eroot = os.path.join(root,'FDDB-folds')
+        pattern = '-ellipseList.txt'
+        c = 0
+        X,y = [],[]
+        for path, subdirs, files in os.walk(eroot):
+            for fname in files:
+                if fname.find(pattern) > 0:
+                    fpath = os.path.join(path,fname)
+                    print(fpath)
+                    with open(fpath) as f:
+                        lines = sp.array(f.readlines())
+                        paths_indx = sp.where([line.find('/') > 0 for line in lines])[0]
+                        counts_indx = paths_indx + 1
+                        
+                        paths = sp.array([e.strip() for e in lines[paths_indx]])
+                        ellipces = []
+                        for i in counts_indx:
+                            cnt = int(lines[i])
+                            ellipces.append(lines[i+1:i+cnt+1])
+                        ellipces = [ [ [float(num) for num in line.split()[:-1]] for line in e] for e in ellipces]
+                        ellipces = sp.array(ellipces)
+                        for iname,ells in zip(paths[:],ellipces[:]):
+                            ppath = os.path.join(iroot,iname.replace('/','\\')) + '.jpg'
+                            file_id = iname.split('/')[-1]
+                            
+                            frame = fr.get_frame(ppath)
+                            for item in ells:
+                                ra,rb,theta,x,y = item
+                                x1,y1,x2,y2 = util.ellipse2bbox(a = ra, b = rb, angle = theta, cx = x, cy = y)
+                                x = x1
+                                y = y1
+                                h = abs(y2-y1)
+                                w = abs(x2-x1)
+                                print(file_id,(y,x,h,w))
+                                
+                                non_neg = x > 0 and y > 0
+                                if not non_neg:
+                                    continue
+                                if on_drive:   
+                                    for item in Datasets.data_augmentation(frame,y,x,w,h):
+                                        fr.write_frame('F:\\train_data\\pos\\' + str(c) + '_' + str(file_id) + '_pos',item)
+                                        c +=1
+                                else:
+                                    pass
+        X = sp.array(X)
+        y = sp.ones(len(X))
+        return X,y                    
+                        
+    @staticmethod
+    def get_aflw_face_data(k = 12, on_drive = False):
         dbpath = 'F:\\datasets\\image_data_sets\\faces\\AFLW'
         dbpath = join(dbpath,'aflw.sqlite')
         rfpath = 'F:\\datasets\\image_data_sets\\faces\\AFLW\\img'
         conn = sqlite3.connect(dbpath)
         X = []
         c = 0
-        for file_id,x,y,h,w in conn.execute('SELECT file_id,x,y,h,w FROM Faces NATURAL JOIN FaceRect'):
+        for file_id,x,y,ra,rb,theta in conn.execute('SELECT file_id,x,y,ra,rb,theta FROM Faces NATURAL JOIN FaceEllipse'):
             fpath = join(rfpath,file_id)
             frame = fr.get_frame(fpath)
+            x1,y1,x2,y2 = util.ellipse2bbox(a = ra, b = rb, angle = theta, cx = x, cy = y)
+            x = x1
+            y = y1
+            h = abs(y2-y1)
+            w = abs(x2-x1)
             no_neg = sp.all(sp.array([x,y,h,w]) > 0) ## ignore a bad data in sql table
             if frame != None and no_neg:
-                
-                face = fr.get_patch(frame,y,x,(h,w))
+                y,x,w,h = [int(e) for e in (y,x,w,h)]
+                face = fr.get_patch(frame,y,x,(w,h))
                 face_r,good_example = Datasets.sample_resize(face,k,k)
                 if good_example:
                     print('face:',fpath)
                     vec = fr.frame_to_vect(face_r)
-                    X.append(vec)
-                    #face_flip = fr.flip_frame(face)
-                    face_flip_r = fr.flip_frame(face_r)
-                    vec = fr.frame_to_vect(face_flip_r)
-                    X.append(vec)
-                    #if c % 1000 == 0:
-                    #fr.write_frame('F:\\1\\'+'flip'+str(file_id),face_flip)
-                    #fr.write_frame('F:\\1\\'+str(file_id),face_r)
-                    #fr.write_frame('F:\\1\\'+'flip'+str(file_id)+'_r',face_flip_r)
-                    c += 1
+                    if not on_drive:
+                        X.append(vec)
+                        face_flip_r = fr.flip_frame(face_r)
+                        vec = fr.frame_to_vect(face_flip_r)
+                        X.append(vec)
+                    else:
+                        for item in Datasets.data_augmentation(frame,y,x,w,h):
+                            fr.write_frame('F:\\train_data\\pos\\' + str(c) + '_' + str(file_id)[:-4] + '_' + 'pos',item)
+                            c +=1
         X = sp.array(X)
         y = sp.ones(len(X))
         return X,y
@@ -111,13 +220,6 @@ class Datasets():
                         face = fr.get_patch(img,bbox[1],bbox[0],(bbox[2],bbox[3]))
                         #fr.write_frame('F:\\1\\' + str(c),face)
                         
-                        if indx % 20 == 0:
-                            face_pathes = shuffle(fr.split_frame(face,wshape=(k,k)),random_state = 42)[:20]
-                            for e in face_pathes:
-                                print('in_face:',ipath)
-                                X.append(fr.frame_to_vect(e))
-                                y.append(0)
-                        
                         face_r,good_example = Datasets.sample_resize(face,k,k)
                         
                         if good_example:
@@ -137,7 +239,7 @@ class Datasets():
         return X,y
     
     @staticmethod
-    def get_train_non_face_data(k = 12,write_to_disk = False):
+    def get_train_non_face_data(k = 12,patch_per_img = 25,on_drive = False):
         '''
         cut non-faces (negative examples) by pick random patch (if in not overlaped with any 
         face bbox  from all images  in dataset
@@ -147,7 +249,7 @@ class Datasets():
         '''
         X = []
         def yield_gen(data):
-            data = shuffle(data)[:100]
+            data = shuffle(data)[:patch_per_img]
             for e in data:
                 yield e
                 
@@ -163,17 +265,19 @@ class Datasets():
                     if img == None:
                         continue
                     H,W =  img.shape[:2]
-                    for e  in yield_gen(fr.split_frame(img,wshape=(k,k))):
-                        X.append(fr.frame_to_vect(e))
-                        if c % 10000 == 0:
-                            fr.write_frame('F:\\1\\non_face_'+str(c),e)
-                        c += 1                        
+                    if not on_drive:
+                        for e  in yield_gen(fr.split_frame(img,wshape=(k,k))):
+                            X.append(fr.frame_to_vect(e))
+                    else:
+                        for e  in yield_gen(fr.split_frame(img,wshape=(util.k_max,util.k_max))):
+                            fr.write_frame('F:\\train_data\\neg\\' + str(c) + '_' 'nonface'+'_neg',e)
+                            c += 1
         X = sp.array(X)
         y = sp.zeros(len(X))
         return X,y
         
     @staticmethod
-    def get_train_wider_calib_data(n = None,k = 12):
+    def get_train_calib_data(k = 12):
         '''
         for calibration net
         return X - features
@@ -188,63 +292,37 @@ class Datasets():
         X_name = 'train_data_icalib_'+ suff +  '.npz'
         y_name = 'labels_icalib_'+ suff + '.npz'
         label = -1
-        root = 'F:\\Datasets\\image_data_sets\\faces\\WIDERFace\\'
-        pattern = "*.jpg"
-        bboxs = Datasets.load_wider_face(os.path.join(root,'wider_face_split','wider_face_train_v7.mat'))
-        for path, subdirs, files in os.walk(root,'WIDER_train'):
-            for iname in files:
-                if fnmatch(iname, pattern):
-                    ipath = os.path.join(path, iname)
-                    img = fr.get_frame(ipath)
-                    H,W =  img.shape[:2]
-                    bbox_list = bboxs[iname[:-4]]
-                    for bbox in bbox_list:
-                        label = sp.random.randint(0,45)                            
-                        i,j,h,w = [int(e) for e in util.inv_calib(bbox[1],bbox[0],bbox[2],bbox[3],label)]
-                        face = fr.get_patch(img,i,j,(h,w))
-                        face_r,good_example = Datasets.sample_resize(face,k,k)
-                        if good_example:
-                            vec_icalib = fr.frame_to_vect(face_r)                            
-                            X_data.append(vec_icalib)
-                            y_data.append(label)
-                            c += 1
-                            print('face calib:',label,ipath) 
-
-        
         dbpath = 'F:\\datasets\\image_data_sets\\faces\\AFLW'
         dbpath = join(dbpath,'aflw.sqlite')
         rfpath = 'F:\\datasets\\image_data_sets\\faces\\AFLW\\img'
         conn = sqlite3.connect(dbpath)
-        
-        for file_id,x,y,h,w in conn.execute('SELECT file_id,x,y,h,w FROM Faces NATURAL JOIN FaceRect'):
+        c = 0
+        for file_id,x,y,ra,rb,theta in conn.execute('SELECT file_id,x,y,ra,rb,theta FROM Faces NATURAL JOIN FaceEllipse'):
             fpath = join(rfpath,file_id)
             frame = fr.get_frame(fpath)
+            x1,y1,x2,y2 = util.ellipse2bbox(a = ra, b = rb, angle = theta, cx = x, cy = y)
+            x = x1
+            y = y1
+            h = abs(y2-y1)
+            w = abs(x2-x1)
             no_neg = sp.all(sp.array([x,y,h,w]) > 0) ## ignore a bad data in sql table
-            
             if frame != None and no_neg:
-                #face_o = fr.get_patch(frame,y,x,(h,w))
-                x,y,h,w = [int(e) for e in util.inv_calib(x,y,h,w,label)]
-                face = fr.get_patch(frame,x,y,(h,w))
-                face_r,good_example = Datasets.sample_resize(face,k,k)
-                face_flip_r,_ = Datasets.sample_resize(face,k,k)
-                if good_example:
-                    label = sp.random.randint(0,45)
-             
-                    vec_icalib = fr.frame_to_vect(face_r)                            
-                    X_data.append(vec_icalib)
-                    y_data.append(label)
-                    print('face calib:',label,file_id) 
-                    label = sp.random.randint(0,45)
-                    vec_icalib = fr.frame_to_vect(face_flip_r)                            
-                    X_data.append(vec_icalib)
-                    y_data.append(label)
-                    print('face calib:',label,file_id) 
-        
-                    #fr.write_frame('F:\\1\\' + str(c) + '_calib',face)
-                    #fr.write_frame('F:\\1\\' + str(c),face_o)
-                                        
-                    c += 1
-                
+                y,x,w,h = [int(e) for e in (y,x,w,h)]
+                face = fr.get_patch(frame,y,x,(w,h))
+                #fr.write_frame('F:\\1\\' + str(c) + 'orig',face)
+                c += 1
+                for ((new_y,new_x,new_w,new_h),label) in [(util.calib(y,x,w,h,k),k) for k in sp.random.randint(0,45,5)]:
+                    face = fr.get_patch(frame,new_y,new_x,(new_w,new_h))
+                    no_neg_calib = sp.all(sp.array([new_x,new_y,new_h,new_w]) > 0)
+                    face_r,good_example = Datasets.sample_resize(face,k,k)
+                    
+                    if good_example and no_neg_calib:
+                        #fr.write_frame('F:\\1\\' + str(c) + 'calib_'+str(label) ,face)
+                        print('face:',fpath,label)
+                        vec = fr.frame_to_vect(face_r)    
+                        X_data.append(vec)
+                        y_data.append(label)
+                        
         y_data = sp.array(y_data)
         sp.savez(y_name,y_data)
         X_data = sp.array(X_data)

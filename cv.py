@@ -77,9 +77,9 @@ def cv(nn_name,d_num = 10000,k_fold = 7,score_metrics = 'accuracy',verbose = 0):
 def main():
     s = []
     num = []
-    n_samples = [int(1.5*(10 ** i)) for i in range(1,6)]
+    n_samples = [int(1.5*(10 ** i)) for i in range(1,5)]
     for j,d in enumerate(n_samples):
-        score_mean = cv('12-net',d_num=d,k_fold=3,score_metrics='accuracy')
+        score_mean = cv('12-net',d_num=d,k_fold=3,score_metrics='f1')
         num.append(d)
         s.append(score_mean)
     sns.plt.title('12-net  accuracy learning curve')

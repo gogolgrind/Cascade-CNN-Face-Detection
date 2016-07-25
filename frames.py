@@ -20,7 +20,11 @@ class Frames():
     def resize_frame(frame,shape = (12,12)):
         if not Frames.with_open_cv:
             return sp.misc.imresize(frame,shape)
-        return cv2.resize(frame, shape)
+        try:
+            return cv2.resize(frame, shape)
+        except:
+            print('Bad Data')
+            return None
     
     
     @staticmethod       
@@ -35,7 +39,13 @@ class Frames():
         
     @staticmethod
     def frame_rotate(frame,theta = 45):
-        return rotate(frame,angle=theta)
+        (h, w) = frame.shape[:2]
+        center = (w / 2, h / 2)
+         
+        # rotate the image by 180 degrees
+        M = cv2.getRotationMatrix2D(center, theta, 1.0)
+        rotated = cv2.warpAffine(frame, M, (w, h))
+        return rotated
 
     @staticmethod
     def flip_frame(frame):    
@@ -82,6 +92,8 @@ class Frames():
             
     @staticmethod            
     def get_patch(frame,i,j,wshape = (12,12)):
+        if sp.any([i,j,wshape[0],wshape[1]]) < 0:
+            return None
         # get fix size part(patch)  of image
         H,W = frame.shape[:2]
         h,w = wshape    

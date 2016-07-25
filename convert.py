@@ -12,20 +12,20 @@ def pickle2npz():
     nn12 = Cnnl('12-net').__load_model_old__('12-net_lasagne_.pickle')
     nn12.save_model('12-net_lasagne_.npz')
     
-#    nn_calib12 =  Cnnl('12-calib_net').__load_model_old__('12-calib_net_lasagne_.pickle')
-#    nn_calib12.save_model('12-calib_net_lasagne_.npz')
-#    
-#    nn24 = Cnnl(nn_name = '24-net',subnet=nn12).__load_model_old__('24-net_lasagne_.pickle')
-#    nn_calib24 =  Cnnl('24-calib_net').__load_model_old__('24-calib_net_lasagne_.pickle')
-#    nn48 = Cnnl(nn_name = '48-net',subnet=nn24).__load_model_old__('48-net_lasagne_.pickle')
-#    nn_calib48 =  Cnnl('48-calib_net').__load_model_old__('48-calib_net_lasagne_.pickle')
-#    
-#    
-#    nn24.save_model('24-net_lasagne_.npz')
-#    nn48.save_model('48-net_lasagne_.npz')
-#
-#    nn_calib24.save_model('24-calib_net_lasagne_.npz')
-#    nn_calib48.save_model('48-calib_net_lasagne_.npz')
+    nn_calib12 =  Cnnl('12-calib_net').__load_model_old__('12-calib_net_lasagne_.pickle')
+    nn_calib12.save_model('12-calib_net_lasagne_.npz')
+    
+    nn24 = Cnnl(nn_name = '24-net',subnet=nn12).__load_model_old__('24-net_lasagne_.pickle')
+    nn_calib24 =  Cnnl('24-calib_net').__load_model_old__('24-calib_net_lasagne_.pickle')
+    nn48 = Cnnl(nn_name = '48-net',subnet=nn24).__load_model_old__('48-net_lasagne_.pickle')
+    nn_calib48 =  Cnnl('48-calib_net').__load_model_old__('48-calib_net_lasagne_.pickle')
+    
+    
+    nn24.save_model('24-net_lasagne_.npz')
+    nn48.save_model('48-net_lasagne_.npz')
+
+    nn_calib24.save_model('24-calib_net_lasagne_.npz')
+    nn_calib48.save_model('48-calib_net_lasagne_.npz')
 
 def mat2npz():
     struct = sp.io.loadmat('f12net.mat')
