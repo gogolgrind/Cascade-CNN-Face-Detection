@@ -8,3 +8,4 @@ Link to Report : https://yadi.sk/i/PtBlL0Mdtc6pH
 
 ![](https://pp.vk.me/c636322/v636322831/1d19a/2bzzbBb97tI.jpg)
 ![](https://pp.vk.me/c636322/v636322831/1d1a1/OND37SCVeHE.jpg)
+![](https://pp.vk.me/c630024/v630024831/3b788/NUQVT_TCR28.jpg)
